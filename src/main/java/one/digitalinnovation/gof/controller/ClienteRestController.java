@@ -1,6 +1,7 @@
 package one.digitalinnovation.gof.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,8 +12,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import one.digitalinnovation.gof.controller.dto.CreateClienteRequest;
 import one.digitalinnovation.gof.model.Cliente;
 import one.digitalinnovation.gof.service.ClienteService;
+
+import javax.validation.Valid;
 
 /**
  * Esse {@link RestController} representa nossa <b>Facade</b>, pois abstrai toda
@@ -39,9 +43,9 @@ public class ClienteRestController {
 	}
 
 	@PostMapping
-	public ResponseEntity<Cliente> inserir(@RequestBody Cliente cliente) {
-		clienteService.inserir(cliente);
-		return ResponseEntity.ok(cliente);
+	public ResponseEntity<Cliente> inserir(@Valid @RequestBody CreateClienteRequest request) {
+		Cliente cliente = clienteService.inserir(request);
+		return ResponseEntity.status(HttpStatus.CREATED).body(cliente);
 	}
 
 	@PutMapping("/{id}")

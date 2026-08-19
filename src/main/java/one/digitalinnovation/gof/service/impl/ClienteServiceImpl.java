@@ -1,10 +1,13 @@
 package one.digitalinnovation.gof.service.impl;
 
 import java.util.Optional;
+import java.util.stream.Stream;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import one.digitalinnovation.gof.controller.dto.CreateClienteRequest;
+import one.digitalinnovation.gof.controller.dto.CreateEnderecoRequest;
+import one.digitalinnovation.gof.exception.EnderecoManualIncompletoException;
 import one.digitalinnovation.gof.model.Cliente;
 import one.digitalinnovation.gof.model.ClienteRepository;
 import one.digitalinnovation.gof.model.Endereco;
@@ -22,13 +25,16 @@ import one.digitalinnovation.gof.service.ViaCepService;
 @Service
 public class ClienteServiceImpl implements ClienteService {
 
-	// Singleton: Injetar os componentes do Spring com @Autowired.
-	@Autowired
-	private ClienteRepository clienteRepository;
-	@Autowired
-	private EnderecoRepository enderecoRepository;
-	@Autowired
-	private ViaCepService viaCepService;
+	private final ClienteRepository clienteRepository;
+	private final EnderecoRepository enderecoRepository;
+	private final ViaCepService viaCepService;
+
+	public ClienteServiceImpl(ClienteRepository clienteRepository, EnderecoRepository enderecoRepository,
+			ViaCepService viaCepService) {
+		this.clienteRepository = clienteRepository;
+		this.enderecoRepository = enderecoRepository;
+		this.viaCepService = viaCepService;
+	}
 	
 	// Strategy: Implementar os métodos definidos na interface.
 	// Facade: Abstrair integrações com subsistemas, provendo uma interface simples.
@@ -47,8 +53,11 @@ public class ClienteServiceImpl implements ClienteService {
 	}
 
 	@Override
-	public void inserir(Cliente cliente) {
-		salvarClienteComCep(cliente);
+	public Cliente inserir(CreateClienteRequest request) {
+		Cliente cliente = new Cliente();
+		cliente.setNome(request.getNome());
+		cliente.setEndereco(obterEndereco(request.getEndereco()));
+		return clienteRepository.save(cliente);
 	}
 
 	@Override
@@ -78,6 +87,49 @@ public class ClienteServiceImpl implements ClienteService {
 		cliente.setEndereco(endereco);
 		// Inserir Cliente, vinculando o Endereco (novo ou existente).
 		clienteRepository.save(cliente);
+	}
+
+	private Endereco obterEndereco(CreateEnderecoRequest request) {
+		Optional<Endereco> enderecoExistente = enderecoRepository.findById(request.getCep());
+		if (enderecoExistente.isPresent()) {
+			return enderecoExistente.get();
+		}
+
+		Endereco enderecoViaCep = consultarViaCep(request.getCep());
+		if (enderecoViaCep != null && enderecoViaCep.getCep() != null
+				&& !Boolean.TRUE.equals(enderecoViaCep.getErro())) {
+			return enderecoRepository.save(enderecoViaCep);
+		}
+
+		if (enderecoManualEstaCompleto(request)) {
+			return enderecoRepository.save(criarEnderecoManual(request));
+		}
+
+		throw new EnderecoManualIncompletoException();
+	}
+
+	private Endereco consultarViaCep(String cep) {
+		try {
+			return viaCepService.consultarCep(cep);
+		} catch (RuntimeException exception) {
+			return null;
+		}
+	}
+
+	private boolean enderecoManualEstaCompleto(CreateEnderecoRequest request) {
+		return Stream.of(request.getLogradouro(), request.getBairro(), request.getLocalidade(), request.getUf())
+				.allMatch(valor -> valor != null && !valor.isBlank());
+	}
+
+	private Endereco criarEnderecoManual(CreateEnderecoRequest request) {
+		Endereco endereco = new Endereco();
+		endereco.setCep(request.getCep());
+		endereco.setLogradouro(request.getLogradouro());
+		endereco.setComplemento(request.getComplemento());
+		endereco.setBairro(request.getBairro());
+		endereco.setLocalidade(request.getLocalidade());
+		endereco.setUf(request.getUf());
+		return endereco;
 	}
 
 }

@@ -2,6 +2,7 @@ package one.digitalinnovation.gof.model;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Transient;
 
 /**
  * Os atributos desse modelo foram gerados automaticamente pelo site
@@ -26,6 +27,8 @@ public class Endereco {
 	private String gia;
 	private String ddd;
 	private String siafi;
+	@Transient
+	private Boolean erro;
 
 	public String getCep() {
 		return cep;
@@ -105,6 +108,14 @@ public class Endereco {
 
 	public void setSiafi(String siafi) {
 		this.siafi = siafi;
+	}
+
+	public Boolean getErro() {
+		return erro;
+	}
+
+	public void setErro(Boolean erro) {
+		this.erro = erro;
 	}
 
 }
